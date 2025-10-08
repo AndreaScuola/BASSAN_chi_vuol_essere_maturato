@@ -1,4 +1,6 @@
+import java.util.List;
+
 public class ApiResponse {
-    public String response_code;
-    public APIQuestion[] results;
+    public int response_code;
+    public List<APIQuestion> results;
 }

@@ -31,6 +31,11 @@ public class ApiClient {
         Gson gson = new Gson();
         ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
 
+        if(apiResponse.response_code != 0){
+            System.out.println("Errore " + apiResponse.response_code);
+            return;
+        }
+
         for(APIQuestion question : apiResponse.results){    //foreach --> stampa per ogni domanda quello che voglio
             System.out.println(question.question);
             System.out.println(question.correct_answer + "\n");
