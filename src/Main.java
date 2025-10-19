@@ -13,40 +13,44 @@ public class Main {
 
         //1. MENU PRINCIPALE
         System.out.println("----------- CHI VUOLE ESSERE MATURATO -----------\n");
-        System.out.println("Dovrai rispondere alle domande e avrai a disposizione degli aiuti: \n-'H1': 50/50 \n-'H2': Aiuto dal pubblico\nOppure puoi arrenderti con 'R'");
-
-        //Variabili che verrano usate alla fine per creare playerStatistics
-        String playerName;
-        int correctAnswers = 0;
-        boolean used5050 = false;
-        boolean usedAudiance = false;
+        System.out.println("REGOLE: \nDovrai rispondere alle domande e avrai a disposizione degli aiuti: \n-'H1': 50/50 \n-'H2': Aiuto dal pubblico\nOppure puoi arrenderti con 'R'\n\n");
 
         System.out.print("Inserisci il nome del partecipante: ");
-        playerName = sc.nextLine();
+        String playerName = sc.nextLine();
+        PlayerStatistics stats = new PlayerStatistics(playerName, 0, false, false); //Usato per passare i dati tra metodi
 
 
-        //2. PREPARAZIONE DELLE DOMANDE
+        //2. PREPARAZIONE DELLE DOMANDE + 3. LOOP DI GIOCO
+
         ApiClient api = new ApiClient();
+        boolean perso;
+
         ApiResponse apiResponseEasy = api.fetchQuestions(5, "easy", "multiple");
-        ApiResponse apiResponseMedium = api.fetchQuestions(3, "medium", "multiple");
-        ApiResponse apiResponseHard = api.fetchQuestions(2, "hard", "multiple");
+        if(apiResponseEasy == null) return;
+        perso = faiDomande(apiResponseEasy, stats);
 
-        if(apiResponseEasy == null || apiResponseMedium == null || apiResponseHard == null)
-            return;
+        if(!perso){
+            ApiResponse apiResponseMedium = api.fetchQuestions(3, "medium", "multiple");
+            if(apiResponseMedium == null) return;
+            perso = faiDomande(apiResponseMedium, stats);
+        }
+
+        if(!perso){
+            ApiResponse apiResponseHard = api.fetchQuestions(2, "hard", "multiple");
+            if(apiResponseHard == null) return;
+            perso = faiDomande(apiResponseHard, stats);
+        }
 
 
-        //3. LOOP DI GIOCO
-        boolean perso = false;
-        //AGGIUNGI GESTIONE PUNTEGGIO
+        //4. FINE DOMANDE
+        System.out.println("\n\n----------- FINE DOMANDE -----------\n");
+        if(stats.correctAnswers == 10)
+            System.out.println("HAI VINTO!!");
+        else
+            System.out.println("Che peccato! Hai perso");
 
-        perso = faiDomande(apiResponseEasy, 0, used5050, usedAudiance);
-        if(!perso) perso = faiDomande(apiResponseMedium, 5, used5050, usedAudiance);
-        if(!perso) perso = faiDomande(apiResponseHard, 8, used5050, usedAudiance);
 
-
-        //4. FINE ESECUZIONE --> scrittura nel json
-        PlayerStatistics stats = new PlayerStatistics(playerName, correctAnswers, used5050, usedAudiance);
-
+        //5. SALVATAGGIO JSON
         Gson gson = new Gson();
         try(FileWriter fw = new FileWriter(playerName + "_stats.json")){
             gson.toJson(stats, fw);
@@ -57,13 +61,14 @@ public class Main {
 
     }
 
-    private static boolean faiDomande(ApiResponse apiResponse, int nDomanda, boolean used5050, boolean usedAudiance) {
+    private static boolean faiDomande(ApiResponse apiResponse, PlayerStatistics stats) {
         Scanner sc = new Scanner(System.in);
+        int nDomanda = stats.correctAnswers;
         boolean perso = false;
 
         for(APIQuestion domanda : apiResponse.results){
             nDomanda++;
-            System.out.println("Domanda " + nDomanda + ", Difficolta " + domanda.difficulty + " - Categoria " + domanda.category);
+            System.out.println("\nDomanda " + nDomanda + ", Difficolta " + domanda.difficulty + " - Categoria " + domanda.category);
             System.out.println(domanda.question + "\n");
 
             List<AnswerOption> options = domanda.getShuffledAnswers();
@@ -80,6 +85,7 @@ public class Main {
                         System.out.println("Risposta corretta!");
                     else{
                         perso = true;
+                        stats.correctAnswers = nDomanda-1;
                         System.out.println("Sbagliato! \nLa risposta era: " + domanda.correct_answer);
                     }
                     break;
@@ -91,6 +97,7 @@ public class Main {
 
                 default:
                     perso = true;
+                    stats.correctAnswers = nDomanda-1;
                     break;
             }
 
@@ -98,6 +105,7 @@ public class Main {
                 return true;
         }
 
+        stats.correctAnswers = nDomanda;
         return perso;
     }
 }

@@ -1,8 +1,8 @@
 public class PlayerStatistics {
-    private String name;
-    private int correctAnswers;
-    private boolean used5050;
-    private boolean usedAudiance;
+    public String name;
+    public int correctAnswers;
+    public boolean used5050;
+    public boolean usedAudiance;
 
     public PlayerStatistics(String name, int correctAnswers, boolean used5050, boolean usedAudiance) {
         this.name = name;
