@@ -1,9 +1,11 @@
-//N.B. usa psvm per creazione del main e sout per la stampa
-
 import com.google.gson.Gson;
 
+import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
@@ -13,7 +15,7 @@ public class Main {
 
         //1. MENU PRINCIPALE
         System.out.println("----------- CHI VUOLE ESSERE MATURATO -----------\n");
-        System.out.println("REGOLE: \nDovrai rispondere alle domande e avrai a disposizione degli aiuti: \n-'H1': 50/50 \n-'H2': Aiuto dal pubblico\nOppure puoi arrenderti con 'R'\n\n");
+        System.out.println("REGOLE: \nDovrai rispondere alle domande e avrai a disposizione degli aiuti: \n-'HB': 50/50 \n-'HP': Aiuto dal pubblico\nOppure puoi arrenderti con 'R'\n\n");
 
         System.out.print("Inserisci il nome del partecipante: ");
         String playerName = sc.nextLine();
@@ -51,54 +53,76 @@ public class Main {
 
 
         //5. SALVATAGGIO JSON
-        Gson gson = new Gson();
-        try(FileWriter fw = new FileWriter(playerName + "_stats.json")){
-            gson.toJson(stats, fw);
-            System.out.println("Statistiche salvate in " + playerName + "_stats.json");
-        } catch (IOException e){
-            System.out.println("Errore durante il salvataggio delle statistiche: " + e.getMessage());
-        }
-
+        stampaJson(stats);
     }
 
     private static boolean faiDomande(ApiResponse apiResponse, PlayerStatistics stats) {
         Scanner sc = new Scanner(System.in);
         int nDomanda = stats.correctAnswers;
         boolean perso = false;
+        boolean risposto;
 
         for(APIQuestion domanda : apiResponse.results){
             nDomanda++;
-            System.out.println("\nDomanda " + nDomanda + ", Difficolta " + domanda.difficulty + " - Categoria " + domanda.category);
-            System.out.println(domanda.question + "\n");
-
+            risposto = false;
             List<AnswerOption> options = domanda.getShuffledAnswers();
-            System.out.println("A. " + options.get(0) + "\t\tB. " +  options.get(1) +
-                                "\nC. " + options.get(2) + "\t\tD. " +  options.get(3));
 
-            System.out.print("\nInserisci la risposta: ");
-            String response = sc.next();
+            while(!risposto){
+                System.out.println("\nDomanda " + nDomanda + ", Difficolta " + domanda.difficulty + " - Categoria " + domanda.category);
+                System.out.println(domanda.question + "\n");
 
-            //Controllo la risposta sia giusta / H1 e H2 / R
-            switch (response.charAt(0)) {
-                case 'A', 'B', 'C', 'D':
-                    if(options.get((int)response.charAt(0) - 65).isCorrect())
-                        System.out.println("Risposta corretta!");
-                    else{
+                System.out.println("A. " + (options.get(0) == null ? "---" : options.get(0)) +
+                        "\t\tB. " + (options.get(1) == null ? "---" : options.get(1)) +
+                        "\nC. " + (options.get(2) == null ? "---" : options.get(2)) +
+                        "\t\tD. " + (options.get(3) == null ? "---" : options.get(3)));
+
+                System.out.print("\nInserisci la risposta: ");
+                String response = sc.next();
+
+                //Controllo la risposta / HB e HP / R
+                switch (response.charAt(0)) {
+                    case 'A', 'B', 'C', 'D':
+                        if(options.get((int)response.charAt(0) - 65).isCorrect())
+                            System.out.println("Risposta corretta!");
+                        else{
+                            perso = true;
+                            stats.correctAnswers = nDomanda-1;
+                            System.out.println("Sbagliato! \nLa risposta era: " + domanda.correct_answer);
+                        }
+                        break;
+
+                    case 'H':
+                        if(response.charAt(1) == 'B')
+                            if(stats.used5050){
+                                System.out.println("Il 50/50 e' gia' stato usato");
+                                continue;
+                            }
+                            else{
+                                stats.used5050 = true;
+                                usa5050(options);
+                                continue;
+                            }
+
+                        else if(response.charAt(1) == 'P')
+                            if(stats.usedAudiance){
+                                System.out.println("L'aiuto dal pubblico e' gia' stato usato");
+                                continue;
+                            }
+                            else{
+                                stats.usedAudiance = true;
+                                usaAiutoPubblico(options);
+                                continue;
+                            }
+
+                        break;
+
+                    default:
                         perso = true;
                         stats.correctAnswers = nDomanda-1;
-                        System.out.println("Sbagliato! \nLa risposta era: " + domanda.correct_answer);
-                    }
-                    break;
+                        break;
+                }
 
-                case 'H':
-                    //IMPLEMENTA AIUTI
-
-                    break;
-
-                default:
-                    perso = true;
-                    stats.correctAnswers = nDomanda-1;
-                    break;
+                risposto = true;
             }
 
             if(perso)
@@ -108,4 +132,55 @@ public class Main {
         stats.correctAnswers = nDomanda;
         return perso;
     }
+
+    private static void usa5050(List<AnswerOption> options) {
+        int removed = 0;
+        int index;
+
+        while(removed < 2){
+            index = (int)(Math.random() * options.size());
+            if(options.get(index) != null && !options.get(index).isCorrect()){
+                removed++;
+                options.set(index, null);
+            }
+        }
+    }
+
+    private static void usaAiutoPubblico(List<AnswerOption> options) {
+        System.out.println("Il pubblico vota:");
+        for (AnswerOption opt : options) {
+            if (opt == null) continue;
+            int percentuale = opt.isCorrect() ? 60 + (int)(Math.random() * 20) : (int)(Math.random() * 20);
+            System.out.println(opt + " -> " + percentuale + "%");
+        }
+    }
+
+    private static void stampaJson(PlayerStatistics stats) {
+        Gson gson = new Gson();
+        List<PlayerStatistics> allStats = new ArrayList<>();
+
+        //Leggo il file se esiste
+        File file = new File("stats.json");
+        if (file.exists()) {
+            try (FileReader fr = new FileReader(file)) {
+                PlayerStatistics[] existing = gson.fromJson(fr, PlayerStatistics[].class);
+                if (existing != null)
+                    allStats.addAll(Arrays.asList(existing));
+            } catch (IOException e) {
+                System.out.println("Errore durante la lettura del file esistente: " + e.getMessage());
+            }
+        }
+
+        //Aggiungo le nuove statistiche
+        allStats.add(stats);
+
+        //Sovrascrivo il file con la lista aggiornata
+        try (FileWriter fw = new FileWriter(file)) {
+            gson.toJson(allStats, fw);
+            System.out.println("Statistiche aggiornate in 'stats.json'");
+        } catch (IOException e) {
+            System.out.println("Errore durante il salvataggio delle statistiche: " + e.getMessage());
+        }
+    }
+
 }
