@@ -8,7 +8,7 @@ import java.net.http.HttpResponse;
 public class ApiClient {
     private final HttpClient client = HttpClient.newHttpClient();
 
-    public void fetchQuestions(int amount, String difficulty, String type){
+    public ApiResponse fetchQuestions(int amount, String difficulty, String type){
         //https://opentdb.com/api.php?amount=5&difficulty=easy&type=multiple
         String url = "https://opentdb.com/api.php?amount=" + amount + "&difficulty=" + difficulty + "&type=" + type;
 
@@ -24,7 +24,7 @@ public class ApiClient {
                                                                                    // body scritto come una stringa
         } catch (IOException | InterruptedException e) {
             System.out.println("Error" + e.getMessage());
-            return;
+            return null;
         };
 
         //Deserializzazione del JSON con Gson
@@ -33,12 +33,9 @@ public class ApiClient {
 
         if(apiResponse.response_code != 0){
             System.out.println("Errore " + apiResponse.response_code);
-            return;
+            return null;
         }
 
-        for(APIQuestion question : apiResponse.results){    //foreach --> stampa per ogni domanda quello che voglio
-            System.out.println(question.question);
-            System.out.println(question.correct_answer + "\n");
-        }
+        return apiResponse;
     }
 }

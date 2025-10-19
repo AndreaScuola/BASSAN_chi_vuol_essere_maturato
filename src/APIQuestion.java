@@ -1,4 +1,6 @@
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class APIQuestion {
     public String question;
@@ -7,7 +9,17 @@ public class APIQuestion {
     public String correct_answer;
     public String[] incorrect_answers;
 
-    //public Map<Character, String> answersList = new LindedHashMap<>();
+    public List<AnswerOption> getShuffledAnswers() {
+        List<AnswerOption> options = new ArrayList<>();
 
-    //Usa la map per fare lo shuffle delle domande corretta e sbagliata, abbinarci una lettera e chiedere all'utente di scegliere
+        //Aggiungo le risposte e le mescolo
+        options.add(new AnswerOption(correct_answer, true));
+        for (String wrong : incorrect_answers) {
+            options.add(new AnswerOption(wrong, false));
+        }
+        Collections.shuffle(options);
+
+        return options;
+    }
+
 }
